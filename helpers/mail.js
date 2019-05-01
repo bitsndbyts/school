@@ -11,8 +11,8 @@ exports.sendingMail = (role, id, mail, token, cb) => {
     var transporter = nodemailer.createTransport({
         service: 'Gmail',
         auth: {
-            user: '@gmail.com',
-            pass: ''
+            user: 'prashanthjangam1@gmail.com',
+            pass: 'badripavani12345'
         },
         secure: false,
         tls: {rejectUnauthorized: false},

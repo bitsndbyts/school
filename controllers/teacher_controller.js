@@ -62,7 +62,7 @@ exports.Register = (req, res) => {
         },
         (next) => {
 
-            password = bcrypt.hash(req.body.password, 100)
+            req.body.password = bcrypt.hashSync(req.body.password, 10);
 
             var teacherData = new teacher_model({
                 "fname": req.body.fname,
@@ -101,7 +101,7 @@ exports.Register = (req, res) => {
         },
         (token, next) => {
 
-            mailer.sendingMail("teacher",req.body.id, req.body.mail, token, (err, token) => {
+            mailer.sendingMail("teacher", req.body.id, req.body.mail, token, (err, token) => {
                 if (err) {
                     next({
                         "code": 500,
@@ -186,4 +186,99 @@ exports.Activate = (req, res) => {
 
     })
 
+}
+
+exports.Login = (req, res) => {
+    async.waterfall([
+            (next) => {
+                teacher_model.findOne({$and: [{"mail": req.body.mail}, {"status": "ACTIVE"}]}, (err, data) => {
+                    if (err) {
+                        next({
+                            "status": 500,
+                            "message": "Error while fetching the data"
+                        })
+                    } else {
+                        next(null, data)
+                    }
+                })
+            },
+            (data, next) => {
+
+                if (!bcrypt.compareSync(req.body.password, data.password)) {
+                    next({
+                        "status": 400,
+                        "message": "password does not match"
+                    })
+                } else {
+                    next(null, data)
+                }
+            },
+            (data, next) => {
+                payload = {
+                    "id": data.id,
+                    "fname": data.fname,
+                    "lname": data.lname,
+                    "mail": data.mail
+                }
+                const jwtToken = jwt.sign({"data": payload}, data.password, {expiresIn: 60 * 60})
+                next(null, jwtToken)
+            }
+        ],
+        (err, result) => {
+            if (err) {
+                res.send(err)
+            } else {
+                res.send(result)
+            }
+        }
+    )
+}
+
+exports.Update = (req, res) => {
+    token = req.headers['token']
+    data = jwt.decode(token)
+    async.waterfall([
+            (next) => {
+                teacher_model.findOne({"mail": data.data.mail}, (err, data) => {
+                    if (err) {
+                        next({
+                            "code": 500,
+                            "message": err
+                        })
+                    } else {
+                        next(null, data)
+                    }
+                })
+            },
+            (data, next) => {
+                jwt.verify(token, data.password, (err, ress) => {
+                    if (err) {
+                        next(err)
+                    } else {
+                        next(null)
+                    }
+                })
+            },
+            (next) => {
+                teacher_model.updateOne({"mail": data.data.mail}, {$set: req.body}, (err, result) => {
+                    if (err) {
+                        next(err)
+                    } else {
+                        next(null, {
+                            "status": 200,
+                            "message": "Updated"
+                        })
+                    }
+                })
+            }
+
+        ],
+        (err, result) => {
+            if (err) {
+                res.send(err)
+            } else {
+
+                res.send(result)
+            }
+        })
 }
