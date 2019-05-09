@@ -1,8 +1,7 @@
 const jwt = require('jsonwebtoken')
 
-exports.getSign = (payload, password, expires, cb)
-{
-    const token = jwt.sign(payload, password, expires)
+exports.getSign = (payload, password, expires, cb) => {
+    const token = jwt.sign({"data":payload}, password, expires)
     if (token) {
         cb(token)
     } else {
@@ -10,14 +9,21 @@ exports.getSign = (payload, password, expires, cb)
     }
 }
 
-exports.verify = (params.token, "rgukt123", cb)
-{
-
-    jwt.verify(params.token, "rgukt123", (err, _) => {
+exports.verify = (token, psw, cb) => {
+    jwt.verify(params.token, psw, (err, _) => {
         if (err) {
             cb(err)
         } else {
             cb(null)
         }
     })
+}
+
+exports.decode = (token, cb) =>{
+    data= jwt.decode(token)
+    if(token){
+        cb(data)
+    }else{
+        cb(null)
+    }
 }

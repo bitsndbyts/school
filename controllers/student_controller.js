@@ -3,7 +3,7 @@ const mailer = require('../helpers/mail')
 const bcrypt = require('bcrypt')
 const student_validates = require('../validations/student_validations')
 const async = require('async')
-const jwt = require("jsonwebtoken")
+const jwt = require("../helpers/jwt")
 const moment = require("moment")
 
 exports.Register = (req, res) => {
@@ -68,6 +68,26 @@ exports.Register = (req, res) => {
 
             req.body.password = bcrypt.hashSync(req.body.password, 10);
 
+            payload = {
+                "id": req.body.id,
+                "fname": req.body.fname,
+                "lname": req.body.lname,
+                "mail": req.body.mail
+            }
+
+            const token = jwt.getSign(payload, "rgukt123", {expiresIn: 60 * 60},(token) =>{
+                if(token){
+                    next(null,token)
+                }else{
+                    next({
+                        "code":500,
+                        "message":err
+                    })
+                }
+            })
+        },
+        (token,next)=>{
+
             var studentData = new student_model({
                 "fname": req.body.fname,
                 "lname": req.body.lname,
@@ -82,15 +102,6 @@ exports.Register = (req, res) => {
                 "caste": req.body.caste
             })
 
-            payload = {
-                "id": req.body.id,
-                "fname": req.body.fname,
-                "lname": req.body.lname,
-                "mail": req.body.mail
-            }
-
-            const token = jwt.sign({data: payload}, "rgukt123", {expiresIn: 60 * 60})
-
             studentData.save((err) => {
                 if (err) {
                     next({
@@ -103,19 +114,10 @@ exports.Register = (req, res) => {
             })
         },
         (token, next) => {
-
-            mailer.sendingMail("student", req.body.id, req.body.mail, token, (err, token) => {
-                if (err) {
-                    next({
-                        "code": 500,
-                        "message": err
-                    })
-                } else {
+            console.log("sending mail")
+            mailer.sendingMail("student", req.body.id, req.body.mail, token)
                     next(null, token)
-                }
-
-            })
-        }
+                   }
     ], (err, token) => {
         if (err) {
             res.send(err)
@@ -173,9 +175,11 @@ exports.Activate = (req, res) => {
                         "message": "Error occured while updating data"
                     }, null)
                 } else {
+                    url = "http://localhost:8000"
+                    html = `<html> <h1> Your account is activated please login <a href="http://localhost:8000/student/login">Clieck here to login</a>  </h1></html>`
                     next(null, {
                         "status": 200,
-                        "message": "Account activated"
+                        "message": html
                     })
                 }
             })
@@ -184,7 +188,7 @@ exports.Activate = (req, res) => {
         if (err) {
             res.send(err)
         } else {
-            res.send(data)
+            res.write(data.message)
         }
 
     })
@@ -223,8 +227,16 @@ exports.Login = (req, res) => {
                     "lname": data.lname,
                     "mail": data.mail
                 }
-                const jwtToken = jwt.sign({"data": payload}, data.password, {expiresIn: 60 * 60})
-                next(null, jwtToken)
+                const jwtToken = jwt.getSign(payload, data.password, {expiresIn: 60 * 60},(token) =>{
+                    if(token){
+                        next(null,token)
+                    }else{
+                        next({
+                            "code":500,
+                            "message":"error occured while fetching the jwt sign"
+                        })
+                    }
+                })
             }
         ],
         (err, result) => {
@@ -239,10 +251,21 @@ exports.Login = (req, res) => {
 
 exports.Update = (req, res) => {
     token = req.headers['token']
-    data = jwt.decode(token)
     console.log(data.data)
     async.waterfall([
             (next) => {
+                data = jwt.decode(token,(data) =>{
+                    if (data){
+                        next(null,data)
+                    }else{
+                        next({
+                            "code":500,
+                            "message":"error occured while decoding the jwt data"
+                        })
+                    }
+                })
+            },
+            (data,next) =>{
                 student_model.findOne({"mail": data.data.mail}, (err, data) => {
                     if (err) {
                         next({

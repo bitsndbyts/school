@@ -105,7 +105,7 @@ exports.Register = (req, res) => {
                 "mail": req.body.password
             }
 
-            const token = jwt.getSign({data: payload}, "rgukt123", {expiresIn: 60 * 60}, (token) => {
+            const token = jwt.getSign(payload, "rgukt123", {expiresIn: 60 * 60}, (token) => {
                 if (token) {
                     next(null, token)
                 } else {
@@ -184,9 +184,10 @@ exports.Activate = (req, res) => {
                         "message": "Error occured while updating data"
                     }, null)
                 } else {
+                    html = `<html> <h1> Your account is activated please login <a href="http://localhost:8000/admin/login">Clieck here to login</a>  </h1></html>`
                     next(null, {
                         "status": 200,
-                        "message": "Account activated"
+                        "message": html
                     })
                 }
             })
@@ -234,7 +235,7 @@ exports.Login = (req, res) => {
                     "lname": data.lname,
                     "mail": data.mail
                 }
-               jwt.getSign({"data": payload}, data.password, {expiresIn: 60 * 60}, (token)=>{
+               jwt.getSign(payload, data.password, {expiresIn: 60 * 60}, (token)=>{
                     if(token){
                         next(null,token)
                     }
@@ -260,9 +261,21 @@ exports.Login = (req, res) => {
 
 exports.Update = (req, res) => {
     token = req.headers['token']
-    data = jwt.decode(token)
+    
     async.waterfall([
             (next) => {
+                data = jwt.decode(token,(data) =>{
+                    if (data){
+                        next(null,data)
+                    }else{
+                        next({
+                            "code":500,
+                            "message":"error occured while decoding the jwt data"
+                        })
+                    }
+                })
+            },
+            (data,next) =>{
                 admin_model.findOne({"mail": data.data.mail}, (err, data) => {
                     if (err) {
                         next({
@@ -275,7 +288,7 @@ exports.Update = (req, res) => {
                 })
             },
             (data, next) => {
-                jwt.verify(token, data.password, (err, ress) => {
+                jwt.verify(token, data.password, (err) => {
                     if (err) {
                         next(err)
                     } else {

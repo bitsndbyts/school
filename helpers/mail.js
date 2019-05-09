@@ -5,65 +5,29 @@ exports.validateEmail = (email) => {
     return re.test(String(email).toLowerCase())
 }
 
-exports.sendingMail = (role, id, mail, token, cb) => {
-
-    console.log("enter main func")
-    var transporter = nodemailer.createTransport({
-        service: 'Gmail',
-        auth: {
-            user: 'prashanthjangam1@gmail.com',
-            pass: 'badripavani12345'
-        },
-        secure: false,
-        tls: {rejectUnauthorized: false},
-        debug: true
-    });
+const sgMail = require('@sendgrid/mail')
+exports.sendingMail = (role, id, mail,token) => {
 
     const url = "http://localhost:8000"
+   
     const text = `
 Hi,
 Thank you for choosing me!
 You are just one click away from completing your account registration.
-
 Confirm your email:\n
-${url}/${role}/activate?token=${token}&id=${id}
-`
-    cb(null, text)
-    //
-    // var mailOptions = {
-    //     from: "prashanthjangam1@gmail.com",
-    //     to: mail,
-    //     text: text,
-    //     subject: 'Please complete your registration',
-    // }
-    // console.log("done mailer options")
-    // console.log(transporter)
-    // transporter.sendMail(mailOptions, function (error, info) {
-    //
-    //     if (error) {
-    //         console.log(error);
-    //         cb(error)
-    //     } else {
-    //         console.log('Email sent: ' + info.response);
-    //         cb(nil)
-    //     }
-    // });
-}
+${url}/${role}/activate?token=${token}&id=${id}`
 
-// const sgMail = require('@sendgrid/mail')
-// exports.sendingMail = (id, mail, token) => {
-//
-//     console.log(id, mail)
-//     sgMail.setApiKey("");
-//     console.log("api key set")
-//     const msg = {
-//         to: mail,
-//         from: 'prashanthjangam1@gmail.com',
-//         subject: 'Sending with SendGrid is Fun',
-//         text: 'and easy to do anywhere, even with Node.js',
-//         html: '<strong>and easy to do anywhere, even with Node.js</strong>',
-//     };
-//     console.log("msg", msg)
-//     sgMail.send(msg);
-//     console.log("sending done...")
-// }
+    console.log(id, mail)
+    sgMail.setApiKey("");
+    console.log("api key set")
+    const msg = {
+        to: mail,
+        from: 'prashanthjangam1@gmail.com',
+        subject: 'Sending with SendGrid is Fun',
+        text: text
+    };
+    console.log("msg", msg)
+    sgMail.send(msg)
+    console.log("sending done...")
+    
+}

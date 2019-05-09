@@ -3,7 +3,7 @@ const mailer = require('../helpers/mail')
 const bcrypt = require('bcrypt')
 const teacher_validate = require('../validations/teacher_validations')
 const async = require('async')
-const jwt = require("jsonwebtoken")
+const jwt = require("../helpers/jwt")
 
 exports.Register = (req, res) => {
     async.waterfall([
@@ -64,20 +64,7 @@ exports.Register = (req, res) => {
 
             req.body.password = bcrypt.hashSync(req.body.password, 10);
 
-            var teacherData = new teacher_model({
-                "fname": req.body.fname,
-                "lname": req.body.lname,
-                "name": req.body.name,
-                "id": req.body.id,
-                "password": req.body.password,
-                "class": req.body.class,
-                "subject": req.body.subject,
-                "dob": req.body.dob,
-                "jyear": req.body.jyear,
-                "mail": req.body.mail,
-                "fatname": req.body.fatname,
-                "caste": req.body.caste
-            })
+            
 
             payload = {
                 "id": req.body.id,
@@ -86,8 +73,33 @@ exports.Register = (req, res) => {
                 "mail": req.body.password
             }
 
-            const token = jwt.sign({data: payload}, "rgukt123", {expiresIn: 60 * 60})
-
+            const token = jwt.getSign(payload, "rgukt123", {expiresIn: 60 * 60},(token) =>{
+                if(token){
+                    next(null,token)
+                }else{
+                    next({
+                        "code":500,
+                        "message":"error occured while fething the jwt sign"
+                    })
+                }
+        
+            })
+        },
+        (token,next) =>{
+        var teacherData = new teacher_model({
+            "fname": req.body.fname,
+            "lname": req.body.lname,
+            "name": req.body.name,
+            "id": req.body.id,
+            "password": req.body.password,
+            "class": req.body.class,
+            "subject": req.body.subject,
+            "dob": req.body.dob,
+            "jyear": req.body.jyear,
+            "mail": req.body.mail,
+            "fatname": req.body.fatname,
+            "caste": req.body.caste
+        })
             teacherData.save((err) => {
                 if (err) {
                     next({
@@ -128,9 +140,9 @@ exports.Activate = (req, res) => {
 
     async.waterfall([
         (next) => {
-            jwt.verify(params.token, "rgukt123", (err, _) => {
+            jwt.verify(params.token, "rgukt123", (err) => {
                 if (err) {
-                    next(err, null)
+                    next(err)
                 } else {
                     next(null)
                 }
@@ -170,9 +182,10 @@ exports.Activate = (req, res) => {
                         "message": "Error occured while updating data"
                     }, null)
                 } else {
+                    html = `<html> <h1> Your account is activated please login <a href="http://localhost:8000/teacher/login">Clieck here to login</a>  </h1></html>`
                     next(null, {
                         "status": 200,
-                        "message": "Account activated"
+                        "message": html
                     })
                 }
             })
@@ -220,8 +233,17 @@ exports.Login = (req, res) => {
                     "lname": data.lname,
                     "mail": data.mail
                 }
-                const jwtToken = jwt.sign({"data": payload}, data.password, {expiresIn: 60 * 60})
-                next(null, jwtToken)
+                const jwtToken = jwt.getSign(payload, data.password, {expiresIn: 60 * 60},(token) =>{
+                    if(token){
+                        next(null,token)
+                    }else{
+                        next({
+                            "code":500,
+                            "message":"error occured while fetching the jwt sign"
+                        })
+                    }
+            
+                })
             }
         ],
         (err, result) => {
@@ -236,9 +258,20 @@ exports.Login = (req, res) => {
 
 exports.Update = (req, res) => {
     token = req.headers['token']
-    data = jwt.decode(token)
     async.waterfall([
             (next) => {
+                data = jwt.decode(token,(data) =>{
+                    if (data){
+                        next(null,data)
+                    }else{
+                        next({
+                            "code":500,
+                            "message":"error occured while decoding the jwt data"
+                        })
+                    }
+                })
+            },
+            (data,next) =>{
                 teacher_model.findOne({"mail": data.data.mail}, (err, data) => {
                     if (err) {
                         next({
@@ -251,7 +284,7 @@ exports.Update = (req, res) => {
                 })
             },
             (data, next) => {
-                jwt.verify(token, data.password, (err, ress) => {
+                jwt.verify(token, data.password, (err) => {
                     if (err) {
                         next(err)
                     } else {
